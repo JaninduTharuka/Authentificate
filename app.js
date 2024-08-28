@@ -3,7 +3,9 @@ const express = require('express');
 const ejs = require('ejs');
 const mongoose = require('mongoose');
 // const encrypt = require('mongoose-encryption');
-md5 = require('md5');
+// md5 = require('md5');
+const bcrypt = require('bcrypt');
+const saltRounds = 10;
 
 const app = express();
 
@@ -43,13 +45,15 @@ app.route('/register')
         res.render('register');
     })
     .post((req, res) => {
-        const newUser = new User({
-            email: req.body.username,
-            password: md5(req.body.password)
+        bcrypt.hash(req.body.password, saltRounds, function(err, hash) {
+            const newUser = new User({
+                email: req.body.username,
+                password: hash
+            });
+            newUser.save()
+                .then(() => res.render('secrets'))
+                .catch(err => res.send(err));
         });
-        newUser.save()
-            .then(() => res.render('secrets'))
-            .catch(err => res.send(err));
     });
 
 app.route('/login')
@@ -59,14 +63,20 @@ app.route('/login')
     .post((req,res) => {
         const username = req.body.username;
         const password = req.body.password;
+        console.log(username,password)
         User.findOne({ email: username })
             .then(foundUser => {
                 if (foundUser) {
-                    if (foundUser.password === md5(password)) {
-                        res.render('secrets');
-                    } else {
-                        res.send('Incorrect password');
-                    }
+                    console.log(foundUser);
+                    bcrypt.compare(password, foundUser.password, function(err, result) {
+                        console.log(result);
+                        console.log('abcd')
+                        if (result) {
+                            res.render('secrets');
+                        } else {
+                            res.send('Incorrect password');
+                        }
+                    });
                 } else {
                     res.send('User not found');
                 }
